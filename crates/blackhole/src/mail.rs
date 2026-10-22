@@ -10,13 +10,12 @@ use aethereal_window::WindowId;
 #[kind(name = "aether.example.blackhole.nothing")]
 pub struct Nothing;
 
-/// The config of both roots: the window the hole is shown on, and its surface's size in pixels as the page set it.
+/// The config of both roots: the window the hole is shown on. The orbit learns the window's size from the window,
+/// which sends a new subscriber its surface before anything else, and every resize after.
 #[derive(Debug, Clone, Copy, Plain)]
 #[kind(name = "aether.example.blackhole.canvas")]
 pub struct Canvas {
     pub window: WindowId,
-    pub width: u32,
-    pub height: u32,
 }
 
 /// Asks the orbit for the view the photons are traced from. Answered with [`Looking`].

@@ -35,7 +35,7 @@ pub struct Program {
 }
 
 /// Opens `canvas` as the one window and WebGPU on it, then makes the engine with the window root, the renderer, handed
-/// the GPU, the orbit, and the lens as its roots, each told the canvas's size, and listens to the page for the pointer
+/// the GPU, the orbit, and the lens as its roots, each told the canvas's window, and listens to the page for the pointer
 /// over the canvas, drawn at the canvas's device pixels to each CSS pixel, but at most `density`: the page's
 /// `min(devicePixelRatio, 2)` times the quality it was asked for, so a lower quality traces fewer photons.
 ///
@@ -53,14 +53,14 @@ pub async fn start(canvas: HtmlCanvasElement, density: f64) -> Result<Program, J
         .add_root::<Windows>(&(), opening.config())
         .map_err(|refused| JsError::new(&format!("the window root did not begin: {refused:?}")))?;
     let (rendering, mappings) = renderer(&mut setup, gpu);
-    let sized = Canvas { window: shown.window(), width: canvas.width(), height: canvas.height() };
+    let config = Canvas { window: shown.window() };
     // The lens asks the orbit at its typed path, so the orbit is made first.
     let engine = setup
         .add_root::<Renderer>(&(), rendering)
         .map_err(|refused| JsError::new(&format!("the renderer did not begin: {refused:?}")))?
-        .add_root::<Orbit>(&(), sized)
+        .add_root::<Orbit>(&(), config)
         .map_err(|refused| JsError::new(&format!("the orbit did not begin: {refused:?}")))?
-        .add_root::<Lens>(&(), sized)
+        .add_root::<Lens>(&(), config)
         .map_err(|refused| JsError::new(&format!("the lens did not begin: {refused:?}")))?
         .ready();
     let listening = canvas::listen(&canvas, &shown, Density::at_most(density))?;

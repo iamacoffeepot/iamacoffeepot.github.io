@@ -1,6 +1,7 @@
 //! The orbit: the root that keeps the camera. Asked for the view, it holds the ask while it makes the uniforms the
 //! photons are traced from, then answers with them. It follows the window's pointer, which drags the camera round the
-//! hole, and at each `Tick` it turns the disk's time on, drifts the camera when nothing drags it, and writes the view.
+//! hole, and at each `Tick` it turns the disk's time on, drifts the camera when nothing drags it, and writes the view
+//! for the window as it was last resized.
 
 mod pointer;
 mod view;
@@ -14,7 +15,7 @@ use aethereal_actor::{
 use aethereal_data::Bound;
 use aethereal_render::Renderer;
 use aethereal_render::uniforms::{CreateUniforms, Uniformed, UniformsId, WriteUniforms};
-use aethereal_window::{self as window, Event, Window};
+use aethereal_window::{self as window, Event, Surface, Window};
 use core::mem;
 use core::time::Duration;
 use pointer::Pointer;
@@ -24,12 +25,12 @@ use view::View;
 /// was hidden, moves them no further, so nothing jumps.
 const LONGEST_STEP_NANOS: u64 = 250_000_000;
 
-/// The orbit: the window it follows, the pointer as it last heard it, the camera's view, and how far it has come in
-/// handing the view to the GPU.
+/// The orbit: the window's surface as it was last resized, the pointer as it last heard it, the camera's view, and how
+/// far it has come in handing the view to the GPU.
 #[derive(Bound)]
 #[kind(name = "aether.example.blackhole.orbit")]
 pub struct Orbit {
-    canvas: Canvas,
+    surface: Surface,
     pointer: Pointer,
     view: View,
     run: Run,
@@ -65,13 +66,17 @@ impl Actor for Orbit {
         turn.to(path::<Window>(canvas.window)).send(&window::Subscribe)?;
         turn.subscribe::<Tick>();
 
-        Ok(Self { canvas, pointer: Pointer::Up, view: View::begun(), run: Run::Waiting })
+        Ok(Self { surface: UNSIZED, pointer: Pointer::Up, view: View::begun(), run: Run::Waiting })
     }
 
     fn end(self, _: &mut Ending<'_, Self, Self::EndSends>) -> Result<(), Fault> {
         Ok(())
     }
 }
+
+/// The surface the orbit holds before its window says its size: one pixel, as the renderer makes a window's frame
+/// before it fits it. The window sends its surface to each new subscriber before anything else.
+const UNSIZED: Surface = Surface { width: 1, height: 1, scale: 1.0 };
 
 /// The pixels of a side of a surface, as a float: a canvas's side is far below what sixteen bits count.
 fn pixels(side: u32) -> f32 {
@@ -81,7 +86,7 @@ fn pixels(side: u32) -> f32 {
 impl Orbit {
     /// The bytes of the uniforms of the view as it now is, on the window as it now is.
     fn uniforms(&self) -> Vec<u8> {
-        self.view.uniforms(pixels(self.canvas.width) / pixels(self.canvas.height))
+        self.view.uniforms(pixels(self.surface.width) / pixels(self.surface.height))
     }
 }
 
@@ -90,13 +95,13 @@ impl Handles<Event> for Orbit {
 
     fn handle(&mut self, event: Event, _: &mut Turn<'_, Self, ()>) -> Result<(), Fault> {
         if let Event::Resized(surface) = event {
-            self.canvas = Canvas { width: surface.width, height: surface.height, ..self.canvas };
+            self.surface = surface;
         }
         if let Event::Wheel { delta_y, .. } = event {
             self.view = self.view.zoomed(delta_y);
         }
         let (pointer, dragged) = self.pointer.heard(&event);
-        self.view = self.view.dragged(dragged, pixels(self.canvas.height));
+        self.view = self.view.dragged(dragged, pixels(self.surface.height));
         self.pointer = pointer;
 
         Ok(())

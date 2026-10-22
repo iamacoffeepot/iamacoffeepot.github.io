@@ -1,6 +1,7 @@
-//! The lens: the root that shows the black hole. At `Start` it makes what it draws one ask after another, each answer
-//! carrying what was made so far: the quad, the tracing program, and the bloom's effects. It asks the orbit for the
-//! view, then makes the glow's frame and the window's, and places the quad in both, bound to the view.
+//! The lens: the root that shows the black hole. At `Start` it learns the window's colour, then makes the frame's
+//! effects one ask after another, each answer carrying what was made so far: the trace and the bloom's. It asks the
+//! orbit for the view, then makes the window's frame, its trace bound to the view. Nothing is placed: every pass is an
+//! effect, and the frame follows the window's size itself.
 
 mod bloom;
 mod frames;
@@ -15,16 +16,12 @@ use aethereal_actor::{
 };
 use aethereal_data::{Bound, Plain};
 use aethereal_render::Renderer;
-use aethereal_render::effect::{CreateEffect, EffectId, Effected};
+use aethereal_render::effect::{CreateEffect, EffectId, Effected, MadeEffect};
 use aethereal_render::frame::builder::Float;
-use aethereal_render::frame::{CreateFrame, Frame, FrameId, Framed, ShapeOf, Shaped};
-use aethereal_render::mesh::{CreateMesh, MeshId, Meshed};
+use aethereal_render::frame::{CreateFrame, Frame, Framed, ShapeOf, Shaped};
 use aethereal_render::pass::Main;
-use aethereal_render::placement::{Place, Placed};
-use aethereal_render::program::{CreateProgram, ProgramId, Programmed};
 use aethereal_render::shape::ColourFormat;
 use bloom::Effects;
-use trace::Tracing;
 
 /// The lens: how far it has come in showing the hole on the canvas.
 #[derive(Bound)]
@@ -32,7 +29,7 @@ use trace::Tracing;
 pub enum Lens {
     /// Its asks are under way.
     Making { canvas: Canvas },
-    /// The quad is placed in both frames.
+    /// The window's frame is made.
     Showing,
 }
 
@@ -40,53 +37,16 @@ impl ChildOf for Lens {
     type Parent = Top;
 }
 
-/// What was learned before the quad was asked for: the window's colour, which the composite draws into.
-#[derive(Plain)]
-#[kind(name = "aether.example.blackhole.learned")]
-pub struct Learned {
-    window: ColourFormat,
-}
-
-/// What was made before the tracing program was asked for.
-#[derive(Plain)]
-#[kind(name = "aether.example.blackhole.made_mesh")]
-pub struct MadeMesh {
-    window: ColourFormat,
-    mesh: MeshId,
-}
-
-/// What was made before the bloom's effects were asked for.
-#[derive(Debug, Clone, Copy, Plain)]
-pub struct Drawn {
-    window: ColourFormat,
-    mesh: MeshId,
-    program: ProgramId,
-}
-
-/// Which of the bloom's effects was asked for, with those made before it.
+/// Which of the frame's effects was asked for, with the window's colour, which the composite draws into, and the
+/// effects made before it.
 #[derive(Debug, Clone, Copy, Plain)]
 #[kind(name = "aether.example.blackhole.effecting")]
 pub enum Effecting {
-    Bright(Drawn),
-    Across(Drawn, EffectId<(Float,)>),
-    Down(Drawn, EffectId<(Float,)>, EffectId<(Float,)>),
-    Composite(Drawn, EffectId<(Float,)>, EffectId<(Float,)>, EffectId<(Float,)>),
-}
-
-/// What was made before the view was asked for.
-#[derive(Debug, Clone, Copy, Plain)]
-#[kind(name = "aether.example.blackhole.made")]
-pub struct Made {
-    drawn: Drawn,
-    effects: Effects,
-}
-
-/// Which frame was asked for: the glow's, with all that traces the photons, then the window's, with the glow's.
-#[derive(Plain)]
-#[kind(name = "aether.example.blackhole.framing")]
-pub enum Framing {
-    Glow(Effects, Tracing),
-    Shown(Tracing, FrameId),
+    Trace(ColourFormat),
+    Bright(ColourFormat, EffectId<()>),
+    Across(ColourFormat, EffectId<()>, EffectId<(Float,)>),
+    Down(ColourFormat, EffectId<()>, EffectId<(Float,)>, EffectId<(Float,)>),
+    Composite(ColourFormat, EffectId<()>, EffectId<(Float,)>, EffectId<(Float,)>, EffectId<(Float,)>),
 }
 
 impl Actor for Lens {
@@ -95,12 +55,9 @@ impl Actor for Lens {
     type Handles = (
         On<Start>,
         Answer<Shaped, Nothing>,
-        Answer<Meshed, Learned>,
-        Answer<Programmed, MadeMesh>,
         Answer<Effected, Effecting>,
-        Answer<Looking, Made>,
-        Answer<Framed, Framing>,
-        Answer<Placed, Nothing>,
+        Answer<Looking, Effects>,
+        Answer<Framed, Nothing>,
     );
     type BeginSends = ();
     type EndSends = ();
@@ -130,7 +87,7 @@ impl Handles<On<Start>> for Lens {
 }
 
 impl Handles<Answer<Shaped, Nothing>> for Lens {
-    type Sends = (Asks<Path<Renderer>, CreateMesh, Learned>,);
+    type Sends = (Asks<Path<Renderer>, CreateEffect, Effecting>,);
 
     fn handle(
         &mut self,
@@ -141,43 +98,8 @@ impl Handles<Answer<Shaped, Nothing>> for Lens {
             say(format!("the window's main pass has no shape: {answered:?}"));
             return Ok(());
         };
-        let (layout, corners, indices) = trace::quad();
-        let (vertices, indices) = match (turn.put(corners), turn.put(indices)) {
-            (Ok(vertices), Ok(indices)) => (vertices, indices),
-            (Err(why), _) | (_, Err(why)) => {
-                say(format!("no quad asked: {why}"));
-                return Ok(());
-            }
-        };
-        turn.to(path::<Renderer>(()))
-            .ask(&CreateMesh { layout, vertices, indices }, &Learned { window: shape.colour })?;
 
-        Ok(())
-    }
-}
-
-impl Handles<Answer<Meshed, Learned>> for Lens {
-    type Sends = (Asks<Path<Renderer>, CreateProgram, MadeMesh>,);
-
-    fn handle(
-        &mut self,
-        (answered, learned): (Answered<Meshed>, Learned),
-        turn: &mut Turn<'_, Self, Self::Sends>,
-    ) -> Result<(), Fault> {
-        let Answered::Yes(Meshed::Made(mesh)) = answered else {
-            say(format!("the quad was not made: {answered:?}"));
-            return Ok(());
-        };
-        let wgsl = match turn.put(Vec::from(trace::TRACE_WGSL)) {
-            Ok(wgsl) => wgsl,
-            Err(why) => {
-                say(format!("no tracing program asked: {why}"));
-                return Ok(());
-            }
-        };
-        turn.to(path::<Renderer>(())).ask(&trace::program(wgsl), &MadeMesh { window: learned.window, mesh })?;
-
-        Ok(())
+        ask_effect(Effecting::Trace(shape.colour), turn)
     }
 }
 
@@ -185,7 +107,8 @@ impl Effecting {
     /// The WGSL of the effect asked for so.
     const fn source(&self) -> &'static str {
         match self {
-            Self::Bright(_) => bloom::BRIGHT_WGSL,
+            Self::Trace(_) => trace::TRACE_WGSL,
+            Self::Bright(..) => bloom::BRIGHT_WGSL,
             Self::Across(..) | Self::Down(..) => bloom::BLUR_WGSL,
             Self::Composite(..) => bloom::COMPOSITE_WGSL,
         }
@@ -194,23 +117,33 @@ impl Effecting {
     /// The ask for the effect asked for so, of the WGSL the blob `wgsl` holds.
     fn create(&self, wgsl: BlobRef) -> CreateEffect {
         match self {
-            Self::Bright(_) => bloom::bright(wgsl),
+            Self::Trace(_) => trace::effect(wgsl),
+            Self::Bright(..) => bloom::bright(wgsl),
             Self::Across(..) => bloom::across(wgsl),
             Self::Down(..) => bloom::down(wgsl),
-            Self::Composite(drawn, ..) => bloom::composite(wgsl, drawn.window),
+            Self::Composite(window, ..) => bloom::composite(wgsl, *window),
         }
     }
 
     /// What follows the effect asked for so once it is made, `made`: the next effect, or, once the last is, all that
-    /// was made.
-    const fn then(self, made: EffectId<(Float,)>) -> Next {
-        match self {
-            Self::Bright(drawn) => Next::Effect(Self::Across(drawn, made)),
-            Self::Across(drawn, bright) => Next::Effect(Self::Down(drawn, bright, made)),
-            Self::Down(drawn, bright, across) => Next::Effect(Self::Composite(drawn, bright, across, made)),
-            Self::Composite(drawn, bright, across, down) => {
-                Next::Made(Made { drawn, effects: Effects { bright, across, down, composite: made } })
+    /// was made; or nothing more, when it reads what it was not asked to.
+    fn then(self, made: &MadeEffect) -> Next {
+        let none = EffectId::of(made);
+        let one = EffectId::of(made);
+        let two = EffectId::of(made);
+        match (self, none, one, two) {
+            (Self::Trace(window), Some(trace), ..) => Next::Effect(Self::Bright(window, trace)),
+            (Self::Bright(window, trace), _, Some(bright), _) => Next::Effect(Self::Across(window, trace, bright)),
+            (Self::Across(window, trace, bright), _, Some(across), _) => {
+                Next::Effect(Self::Down(window, trace, bright, across))
             }
+            (Self::Down(window, trace, bright, across), _, Some(down), _) => {
+                Next::Effect(Self::Composite(window, trace, bright, across, down))
+            }
+            (Self::Composite(_, trace, bright, across, down), _, _, Some(composite)) => {
+                Next::Made(Effects { trace, bright, across, down, composite })
+            }
+            _ => Next::Unread,
         }
     }
 }
@@ -219,8 +152,10 @@ impl Effecting {
 enum Next {
     /// The next effect, asked for so.
     Effect(Effecting),
-    /// Nothing more of the bloom: all that was made.
-    Made(Made),
+    /// Nothing more: every effect, made.
+    Made(Effects),
+    /// Nothing: the effect reads what it was not asked to.
+    Unread,
 }
 
 /// Asks for the effect `effecting` names, in a turn whose sends allow it, saying why it was not when its WGSL could
@@ -241,25 +176,8 @@ where
     Ok(())
 }
 
-impl Handles<Answer<Programmed, MadeMesh>> for Lens {
-    type Sends = (Asks<Path<Renderer>, CreateEffect, Effecting>,);
-
-    fn handle(
-        &mut self,
-        (answered, made): (Answered<Programmed>, MadeMesh),
-        turn: &mut Turn<'_, Self, Self::Sends>,
-    ) -> Result<(), Fault> {
-        let Answered::Yes(Programmed::Made(program)) = answered else {
-            say(format!("the tracing program was not made: {answered:?}"));
-            return Ok(());
-        };
-
-        ask_effect(Effecting::Bright(Drawn { window: made.window, mesh: made.mesh, program }), turn)
-    }
-}
-
 impl Handles<Answer<Effected, Effecting>> for Lens {
-    type Sends = (Asks<Path<Renderer>, CreateEffect, Effecting>, Asks<Path<Orbit>, Look, Made>);
+    type Sends = (Asks<Path<Renderer>, CreateEffect, Effecting>, Asks<Path<Orbit>, Look, Effects>);
 
     fn handle(
         &mut self,
@@ -270,26 +188,26 @@ impl Handles<Answer<Effected, Effecting>> for Lens {
             say(format!("an effect was not made: {answered:?}"));
             return Ok(());
         };
-        let Some(effect) = EffectId::of(&made) else {
-            say(format!("an effect reads what it was not asked to: {:?}", made.reads()));
-            return Ok(());
-        };
-        let made = match effecting.then(effect) {
+        let effects = match effecting.then(&made) {
             Next::Effect(effecting) => return ask_effect(effecting, turn),
-            Next::Made(made) => made,
+            Next::Made(effects) => effects,
+            Next::Unread => {
+                say(format!("an effect reads what it was not asked to: {:?}", made.reads()));
+                return Ok(());
+            }
         };
-        turn.to(path::<Orbit>(())).ask(&Look, &made)?;
+        turn.to(path::<Orbit>(())).ask(&Look, &effects)?;
 
         Ok(())
     }
 }
 
-impl Handles<Answer<Looking, Made>> for Lens {
-    type Sends = (Asks<Path<Renderer>, CreateFrame, Framing>,);
+impl Handles<Answer<Looking, Effects>> for Lens {
+    type Sends = (Asks<Path<Renderer>, CreateFrame, Nothing>,);
 
     fn handle(
         &mut self,
-        (answered, made): (Answered<Looking>, Made),
+        (answered, effects): (Answered<Looking>, Effects),
         turn: &mut Turn<'_, Self, Self::Sends>,
     ) -> Result<(), Fault> {
         let Answered::Yes(looking) = answered else {
@@ -299,58 +217,25 @@ impl Handles<Answer<Looking, Made>> for Lens {
         let Self::Making { canvas } = *self else {
             return Ok(());
         };
-        let tracing = Tracing { mesh: made.drawn.mesh, program: made.drawn.program, view: looking.view };
-        let create = match frames::glow(frames::glow_size(canvas.width, canvas.height), &made.effects) {
+        let create = match frames::shown(canvas.window, &effects, looking.view) {
             Ok(create) => create,
             Err(why) => {
-                say(format!("the glow's frame was not built: {why:?}"));
+                say(format!("the window's frame was not built: {why:?}"));
                 return Ok(());
             }
         };
-        turn.to(path::<Renderer>(())).ask(&create, &Framing::Glow(made.effects, tracing))?;
+        turn.to(path::<Renderer>(())).ask(&create, &Nothing)?;
 
         Ok(())
     }
 }
 
-impl Handles<Answer<Framed, Framing>> for Lens {
-    type Sends = (Asks<Path<Renderer>, CreateFrame, Framing>, Asks<Path<Renderer>, Place, Nothing>);
-
-    fn handle(
-        &mut self,
-        (answered, framing): (Answered<Framed>, Framing),
-        turn: &mut Turn<'_, Self, Self::Sends>,
-    ) -> Result<(), Fault> {
-        let Self::Making { canvas } = *self else {
-            return Ok(());
-        };
-        match (answered, framing) {
-            (Answered::Yes(Framed::Texture { frame, texture }), Framing::Glow(effects, tracing)) => {
-                let create = match frames::shown(canvas.window, &effects, texture) {
-                    Ok(create) => create,
-                    Err(why) => {
-                        say(format!("the window's frame was not built: {why:?}"));
-                        return Ok(());
-                    }
-                };
-                turn.to(path::<Renderer>(())).ask(&create, &Framing::Shown(tracing, frame))?;
-            }
-            (Answered::Yes(Framed::Made(_)), Framing::Shown(tracing, glow)) => {
-                turn.to(path::<Renderer>(())).ask(&tracing.place(glow, canvas.window), &Nothing)?;
-            }
-            (answered, _) => say(format!("a frame was not made: {answered:?}")),
-        }
-
-        Ok(())
-    }
-}
-
-impl Handles<Answer<Placed, Nothing>> for Lens {
+impl Handles<Answer<Framed, Nothing>> for Lens {
     type Sends = ();
 
-    fn handle(&mut self, (answered, _): (Answered<Placed>, Nothing), _: &mut Turn<'_, Self, ()>) -> Result<(), Fault> {
-        let Answered::Yes(Placed::Made(_)) = answered else {
-            say(format!("the photons were not placed: {answered:?}"));
+    fn handle(&mut self, (answered, _): (Answered<Framed>, Nothing), _: &mut Turn<'_, Self, ()>) -> Result<(), Fault> {
+        let Answered::Yes(Framed::Made(_)) = answered else {
+            say(format!("the window's frame was not made: {answered:?}"));
             return Ok(());
         };
         *self = Self::Showing;

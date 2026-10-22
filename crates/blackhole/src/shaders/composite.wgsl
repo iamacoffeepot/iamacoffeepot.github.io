@@ -3,7 +3,8 @@
 // format encodes sRGB itself; `encoded` writes to one that does not, and encodes it.
 
 @group(0) @binding(0) var light: texture_2d<f32>;
-@group(1) @binding(0) var glow: texture_2d<f32>;
+@group(0) @binding(1) var glow: texture_2d<f32>;
+@group(1) @binding(0) var blended: sampler;
 
 // How much of the glow is added, and how dark the corners fall.
 const GLOW: f32 = 1.0;
@@ -22,33 +23,14 @@ fn dither(at: vec2<f32>) -> vec3<f32> {
     return vec3((noise - 0.5) / 255.0);
 }
 
-// The glow's texel at `at`, held within `last`, its last texel, mapped back from how `down` stored it: s² = x / (1 + x),
-// so x = s² / (1 - s²).
-fn glow_texel(at: vec2<i32>, last: vec2<i32>) -> vec3<f32> {
-    let stored = textureLoad(glow, clamp(at, vec2(0), last), 0).rgb;
-    let mapped = stored * stored;
-    return mapped / max(1.0 - mapped, vec3(0.004));
-}
-
-// The glow at `uv`, blended between its four nearest texels: it is smaller than the window, and an effect is bound no
-// sampler to filter it.
-fn glow_at(uv: vec2<f32>) -> vec3<f32> {
-    let size = vec2<f32>(textureDimensions(glow));
-    let at = uv * size - 0.5;
-    let base = vec2<i32>(floor(at));
-    let between = fract(at);
-    let last = vec2<i32>(size) - 1;
-    let low = mix(glow_texel(base, last), glow_texel(base + vec2(1, 0), last), between.x);
-    let high = mix(glow_texel(base + vec2(0, 1), last), glow_texel(base + vec2(1, 1), last), between.x);
-    return mix(low, high, between.y);
-}
-
 // The picture at `at`, `uv` across it, in linear light from zero to one.
 fn picture(at: vec4<f32>, uv: vec2<f32>) -> vec3<f32> {
     let seen = textureLoad(light, vec2<i32>(at.xy), 0).rgb;
     let off_centre = uv - 0.5;
     let vignette = 1.0 - VIGNETTE * smoothstep(0.2, 0.8, length(off_centre * vec2(1.0, 0.75)));
-    return filmic(seen + glow_at(uv) * GLOW) * vignette;
+    // The glow is a quarter of the window's size: sampled at `uv`, it is read at the place shaded, between its texels.
+    let glow_seen = textureSample(glow, blended, uv).rgb;
+    return filmic(seen + glow_seen * GLOW) * vignette;
 }
 
 // The sRGB encoding of linear `light`.

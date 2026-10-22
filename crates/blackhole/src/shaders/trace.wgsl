@@ -30,18 +30,8 @@ struct View {
     unused: f32,
 }
 
-@group(0) @binding(0) var<uniform> view: View;
-
-struct Placed {
-    @builtin(position) at: vec4<f32>,
-    // Where the pixel is on the screen, from -1 to 1 across and up.
-    @location(0) screen: vec2<f32>,
-}
-
-@vertex
-fn place(@location(0) corner: vec2<f32>) -> Placed {
-    return Placed(vec4(corner, 0.0, 1.0), corner);
-}
+// The trace is an effect that reads no target, so its group 0 is empty and what it binds begins at group 1.
+@group(1) @binding(0) var<uniform> view: View;
 
 const HORIZON: f32 = 2.0;
 const ISCO: f32 = 6.0;
@@ -231,14 +221,16 @@ fn sky(direction: vec3<f32>, footprint: f32) -> vec3<f32> {
 }
 
 @fragment
-fn shade(placed: Placed) -> @location(0) vec4<f32> {
+fn shade(@location(0) uv: vec2<f32>) -> @location(0) vec4<f32> {
+    // Where the pixel is on the screen, from -1 to 1 across and up: `uv` runs from the target's top left.
+    let screen = vec2(uv.x * 2.0 - 1.0, 1.0 - uv.y * 2.0);
     // The camera on its orbit, looking at the hole, the disk's axis up.
     let eye = view.distance * vec3(cos(view.pitch) * sin(view.yaw), sin(view.pitch), cos(view.pitch) * cos(view.yaw));
     let forward = -eye / view.distance;
     let right = normalize(cross(forward, vec3(0.0, 1.0, 0.0)));
     let up = cross(right, forward);
-    let across = placed.screen.x * view.tan_half_fov * view.aspect;
-    let upward = placed.screen.y * view.tan_half_fov;
+    let across = screen.x * view.tan_half_fov * view.aspect;
+    let upward = screen.y * view.tan_half_fov;
     let looking = normalize(forward + right * across + up * upward);
 
     // The camera is a static observer at r_cam: what it sees at angle ψ from the radial direction leaves it, in
