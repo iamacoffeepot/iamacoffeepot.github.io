@@ -20,9 +20,10 @@ export class Program {
     }
     /**
      * Runs one frame.
+     * @param {number} timestamp_millis
      */
-    frame() {
-        wasm.program_frame(this.__wbg_ptr);
+    frame(timestamp_millis) {
+        wasm.program_frame(this.__wbg_ptr, timestamp_millis);
     }
 }
 if (Symbol.dispose) Program.prototype[Symbol.dispose] = Program.prototype.free;
