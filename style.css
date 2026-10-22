@@ -78,6 +78,8 @@ h1 {
   text-wrap: balance;
 }
 
+h1.section { margin-top: 40px; }
+
 .games {
   list-style: none;
   padding: 0;
