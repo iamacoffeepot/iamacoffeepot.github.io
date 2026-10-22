@@ -30,7 +30,7 @@
 </div>
 <div id="links">
   <a href="/demos/">← demos</a>
-  <a href="https://github.com/iamacoffeepot/aethereal/tree/f85f7f9/crates/aethereal-chassis-browser/examples/galaxy">view the code</a>
+  <a href="https://github.com/iamacoffeepot/aethereal/tree/91b4f36/crates/aethereal-chassis-browser/examples/galaxy">view the code</a>
 </div>
 <div id="said"></div>
 <script type="module">
@@ -61,9 +61,9 @@
       // Every few seconds the console says how long a frame took, on average, between the page's animation frames
       // and inside the engine's.
       let frames = 0, inside = 0, since = performance.now();
-      const frame = () => {
+      const frame = (timestamp) => {
         const began = performance.now();
-        program.frame();
+        program.frame(timestamp);
         inside += performance.now() - began;
         frames += 1;
         for (const line of program.said()) {

@@ -19,10 +19,11 @@ export class Program {
         wasm.__wbg_program_free(ptr, 0);
     }
     /**
-     * Runs one frame.
+     * Runs one frame, at the timestamp `requestAnimationFrame` handed its callback, in milliseconds.
+     * @param {number} timestamp_millis
      */
-    frame() {
-        wasm.program_frame(this.__wbg_ptr);
+    frame(timestamp_millis) {
+        wasm.program_frame(this.__wbg_ptr, timestamp_millis);
     }
     /**
      * What went wrong since this was last asked, a line each.
