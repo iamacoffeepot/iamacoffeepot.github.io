@@ -10,6 +10,7 @@ cd "$root"
 demos=(
   "pong games/pong"
   "galaxy demos/galaxy"
+  "blackhole demos/blackhole"
 )
 
 rm -rf _site
