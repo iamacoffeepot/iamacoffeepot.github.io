@@ -1,0 +1,26 @@
+[package]
+name = "galaxy"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "A GPU-simulated galaxy with bloom, on a page through aethereal's browser chassis"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+aethereal-actor.workspace = true
+aethereal-chassis-browser.workspace = true
+aethereal-data.workspace = true
+aethereal-render.workspace = true
+aethereal-substrate.workspace = true
+aethereal-window.workspace = true
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen.workspace = true
+wasm-bindgen-futures.workspace = true
+web-sys.workspace = true
+
+[lints]
+workspace = true

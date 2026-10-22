@@ -1,0 +1,69 @@
+[workspace]
+resolver = "3"
+members = ["crates/pong", "crates/galaxy"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+publish = false
+
+# The engine, pinned to one aethereal commit. Bumping it is this one rev; see README.md.
+[workspace.dependencies]
+aethereal-actor = { git = "https://github.com/iamacoffeepot/aethereal", rev = "b3f2795a00fabca78f74da5fecc99de00b1e5268" }
+aethereal-chassis-browser = { git = "https://github.com/iamacoffeepot/aethereal", rev = "b3f2795a00fabca78f74da5fecc99de00b1e5268" }
+aethereal-data = { git = "https://github.com/iamacoffeepot/aethereal", rev = "b3f2795a00fabca78f74da5fecc99de00b1e5268" }
+aethereal-render = { git = "https://github.com/iamacoffeepot/aethereal", rev = "b3f2795a00fabca78f74da5fecc99de00b1e5268" }
+aethereal-substrate = { git = "https://github.com/iamacoffeepot/aethereal", rev = "b3f2795a00fabca78f74da5fecc99de00b1e5268" }
+aethereal-window = { git = "https://github.com/iamacoffeepot/aethereal", rev = "b3f2795a00fabca78f74da5fecc99de00b1e5268" }
+js-sys = "0.3.106"
+# The bindings' version is the `wasm-bindgen` tool's that writes the page's glue: the workflow installs the same.
+wasm-bindgen = "=0.2.129"
+# An async `#[wasm_bindgen]` export, the page's `start`, runs through it.
+wasm-bindgen-futures = "0.4.79"
+web-sys = { version = "0.3.106", features = ["HtmlCanvasElement"] }
+
+# The engine's turn runs through several crates, and is only as fast as what is inlined across them.
+[profile.release]
+lto = "fat"
+codegen-units = 1
+
+# The lints are aethereal's, so the demos' `#[expect]`s hold under clippy as they do there.
+[workspace.lints.rust]
+# A path the compiler can shorten is written short.
+unused_qualifications = "warn"
+
+[workspace.lints.rustdoc]
+redundant_explicit_links = "warn"
+broken_intra_doc_links = "warn"
+private_intra_doc_links = "warn"
+
+[workspace.lints.clippy]
+# Every level here is a merge gate: CI runs clippy with `-D warnings`, so a
+# `warn` fails a pull request as a `deny` does.
+pedantic = { level = "warn", priority = -1 }
+nursery = { level = "warn", priority = -1 }
+
+dbg_macro = "warn"
+todo = "warn"
+unimplemented = "warn"
+unwrap_used = "warn"
+print_stdout = "warn"
+print_stderr = "warn"
+# `crate::a::b::Thing` written inline where a `use` would shorten it.
+absolute_paths = "warn"
+undocumented_unsafe_blocks = "deny"
+cloned_instead_of_copied = "deny"
+large_stack_arrays = "deny"
+match_wildcard_for_single_variants = "deny"
+uninlined_format_args = "deny"
+unreadable_literal = "deny"
+# A module with child modules is `foo/mod.rs`; `foo.rs` is a leaf.
+self_named_module_files = "deny"
+
+# Off: each fights an idiom this workspace uses on purpose.
+float_cmp = "allow"
+missing_const_for_fn = "allow"
+missing_errors_doc = "allow"
+needless_pass_by_ref_mut = "allow"
+too_long_first_doc_paragraph = "allow"
