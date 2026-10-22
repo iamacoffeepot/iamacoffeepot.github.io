@@ -2,6 +2,7 @@
 //! for the pointer the disc maps back onto the disc's plane.
 
 use crate::bytes::floats;
+use aethereal_data::Plain;
 
 /// How far the disc is tilted away from facing the screen, in radians.
 const TILT: f32 = 1.02;
@@ -13,7 +14,7 @@ const ROLL: f32 = -0.38;
 const ZOOM: f32 = 1.0;
 
 /// A view of the disc on a surface of `width` by `height` pixels.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Plain)]
 pub struct Camera {
     width: f32,
     height: f32,
@@ -25,6 +26,10 @@ fn pixels(side: u32) -> f32 {
 }
 
 impl Camera {
+    /// The view an actor holds before its window says its size: a surface of one pixel, as the renderer makes a
+    /// window's frame before it fits it. The window sends its surface to each new subscriber before anything else.
+    pub const UNSIZED: Self = Self { width: 1.0, height: 1.0 };
+
     /// A view of the disc on a surface of `width` by `height` pixels.
     pub fn of(width: u32, height: u32) -> Self {
         Self { width: pixels(width), height: pixels(height) }

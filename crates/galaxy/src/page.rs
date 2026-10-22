@@ -35,7 +35,7 @@ pub struct Program {
 }
 
 /// Opens `canvas` as the one window and WebGPU on it, then makes the engine with the window root, the renderer, handed
-/// the GPU, the disc, and the lens as its roots, each told the canvas's size, and listens to the page for the pointer
+/// the GPU, the disc, and the lens as its roots, each told the canvas's window, and listens to the page for the pointer
 /// over the canvas. Its blobs hold the stars as they begin.
 ///
 /// # Errors
@@ -52,14 +52,14 @@ pub async fn start(canvas: HtmlCanvasElement) -> Result<Program, JsError> {
         .add_root::<Windows>(&(), opening.config())
         .map_err(|refused| JsError::new(&format!("the window root did not begin: {refused:?}")))?;
     let (rendering, mappings) = renderer(&mut setup, gpu);
-    let sized = Canvas { window: shown.window(), width: canvas.width(), height: canvas.height() };
+    let config = Canvas { window: shown.window() };
     // The lens asks the disc at its typed path, so the disc is made first.
     let engine = setup
         .add_root::<Renderer>(&(), rendering)
         .map_err(|refused| JsError::new(&format!("the renderer did not begin: {refused:?}")))?
-        .add_root::<Disc>(&(), sized)
+        .add_root::<Disc>(&(), config)
         .map_err(|refused| JsError::new(&format!("the disc did not begin: {refused:?}")))?
-        .add_root::<Lens>(&(), sized)
+        .add_root::<Lens>(&(), config)
         .map_err(|refused| JsError::new(&format!("the lens did not begin: {refused:?}")))?
         .ready();
     // Past two device pixels to each CSS pixel the stars are no sharper, only slower.

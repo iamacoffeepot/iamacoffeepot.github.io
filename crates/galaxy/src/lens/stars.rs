@@ -1,14 +1,14 @@
 //! The stars as the lens draws them: one quad, drawn once for each star by a program that reads the star its instance
-//! names from storage, in two passes of two frames, each bound to uniforms of its own that size the sprites for its
-//! target.
+//! names from storage, in the stars' pass of the window's frame, bound to uniforms that size the sprites for the
+//! window as it was last resized.
 
 use crate::bytes::{floats, words};
 use crate::camera::Camera;
 use crate::disc::STARS;
-use crate::passes::{Small, Stars};
+use crate::passes::Stars;
 use aethereal_actor::BlobRef;
 use aethereal_data::Plain;
-use aethereal_render::frame::{Frame, FrameId};
+use aethereal_render::frame::Frame;
 use aethereal_render::mesh::{Attribute, MeshId, VertexFormat, VertexLayout};
 use aethereal_render::placement::{Bind, Drawn, Join, Place, Resource};
 use aethereal_render::program::{
@@ -27,13 +27,8 @@ const STAR_BYTES: u32 = 32;
 const VIEW_BYTES: u32 = 48;
 
 /// Half a star's sprite on the window, in its pixels, and the light each gives there.
-const SHOWN_SPRITE: f32 = 1.7;
-const SHOWN_GAIN: f32 = 0.16;
-
-/// Half a star's sprite in the glow, in its pixels, and the light each gives there: larger for its smaller target, so
-/// no star falls between its pixels.
-const GLOW_SPRITE: f32 = 1.3;
-const GLOW_GAIN: f32 = 0.2;
+const SPRITE: f32 = 1.7;
+const GAIN: f32 = 0.16;
 
 /// How the quad's corners are laid out: a place of two floats.
 fn corners() -> VertexLayout {
@@ -64,38 +59,27 @@ pub fn program(wgsl: BlobRef) -> CreateProgram {
     }
 }
 
-/// The bytes of the uniforms the stars are drawn into the glow with, through `camera` on its smaller target.
-pub fn glow_view(camera: Camera) -> Vec<u8> {
-    camera.view(GLOW_SPRITE, GLOW_GAIN)
-}
-
 /// The bytes of the uniforms the stars are drawn onto the window with, through `camera`.
-pub fn shown_view(camera: Camera) -> Vec<u8> {
-    camera.view(SHOWN_SPRITE, SHOWN_GAIN)
+pub fn view(camera: Camera) -> Vec<u8> {
+    camera.view(SPRITE, GAIN)
 }
 
-/// What draws the stars: the quad, the program, and each pass's uniforms.
+/// What draws the stars: the quad, the program, and the uniforms of their view.
 #[derive(Debug, Clone, Copy, Plain)]
 pub struct Drawing {
     pub mesh: MeshId,
     pub program: ProgramId,
-    pub glow: UniformsId,
-    pub shown: UniformsId,
+    pub view: UniformsId,
 }
 
 impl Drawing {
-    /// The placement of every star of `stars`, in the glow's pass of `glow` and in the stars' pass of `window`'s frame.
-    pub fn place(self, stars: StorageId, glow: FrameId, window: WindowId) -> Place {
-        let bound = |view| {
-            vec![
-                Bind { group: 0, binding: 0, to: Resource::Storage(stars) },
-                Bind { group: 0, binding: 1, to: Resource::Uniforms(view) },
-            ]
-        };
-        let joins = vec![
-            Join::to::<Small>(Frame::Texture(glow), self.program, bound(self.glow)),
-            Join::to::<Stars>(Frame::Main(window), self.program, bound(self.shown)),
+    /// The placement of every star of `stars` in the stars' pass of `window`'s frame.
+    pub fn place(self, stars: StorageId, window: WindowId) -> Place {
+        let bindings = vec![
+            Bind { group: 0, binding: 0, to: Resource::Storage(stars) },
+            Bind { group: 0, binding: 1, to: Resource::Uniforms(self.view) },
         ];
+        let joins = vec![Join::to::<Stars>(Frame::Main(window), self.program, bindings)];
 
         Place { mesh: self.mesh, instances: Drawn::Count(STARS), joins }
     }

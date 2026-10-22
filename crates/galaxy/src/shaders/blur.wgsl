@@ -1,7 +1,5 @@
 // A Gaussian blur, in two passes: `across` blurs along each row, and `down` along each column of what `across` left,
-// each over twenty-seven texels. `down` writes the frame's end, a texture of bytes, so it keeps the glow in range by
-// mapping it from zero up to one and spends its steps where the eye sees them, on the faint glow, by storing the
-// square root, dithered so the steps do not band; `composite` maps it back.
+// each over twenty-seven texels of a target half the window's size. Both write floats, which keep the glow as it is.
 
 @group(0) @binding(0) var light: texture_2d<f32>;
 
@@ -34,7 +32,5 @@ fn across(@builtin(position) at: vec4<f32>) -> @location(0) vec4<f32> {
 
 @fragment
 fn down(@builtin(position) at: vec4<f32>) -> @location(0) vec4<f32> {
-    let glow = blurred(vec2<i32>(at.xy), vec2(0, 1));
-    let noise = fract(sin(dot(at.xy, vec2(12.9898, 78.233))) * 43758.5453) - 0.5;
-    return vec4(sqrt(glow / (1.0 + glow)) + noise / 255.0, 1.0);
+    return vec4(blurred(vec2<i32>(at.xy), vec2(0, 1)), 1.0);
 }

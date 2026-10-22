@@ -1,7 +1,7 @@
-//! The disc: the root that owns the stars. Asked to move them in a frame, it holds the ask while it seeds their
-//! storage, makes the step's uniforms and the compute program, and dispatches it in the frame's compute pass, then
+//! The disc: the root that owns the stars. Asked to move them, it holds the ask while it seeds their storage, makes
+//! the step's uniforms and the compute program, and dispatches it in the compute pass of its window's frame, then
 //! answers with the stars it moves. At each `Tick` it writes the step: the time it covers, how far the arms have
-//! turned, and where the pointer, while it is held, pulls.
+//! turned, and where the pointer, while it is held, pulls, seen through the window as it was last resized.
 
 mod pointer;
 mod seed;
@@ -9,7 +9,7 @@ mod seed;
 pub use seed::STARS;
 
 use crate::camera::Camera;
-use crate::mail::{Canvas, Move, Moving};
+use crate::mail::{Canvas, Move, Moving, Nothing};
 use crate::page::say;
 use crate::passes::Simulate;
 use aethereal_actor::{
@@ -20,12 +20,12 @@ use aethereal_data::{Bound, Plain};
 use aethereal_render::Renderer;
 use aethereal_render::compute::{ComputeId, Computed, CreateCompute};
 use aethereal_render::dispatch::{CreateDispatch, Dispatch, Dispatched, Invocations};
-use aethereal_render::frame::{Frame, FrameId};
+use aethereal_render::frame::Frame;
 use aethereal_render::placement::{Bind, Resource};
 use aethereal_render::program::{Access, Binding, BindingKind};
 use aethereal_render::storage::{CreateStorage, StorageId, Stored};
 use aethereal_render::uniforms::{CreateUniforms, Uniformed, UniformsId, WriteUniforms};
-use aethereal_window::{self as window, Event, Window};
+use aethereal_window::{self as window, Event, Window, WindowId};
 use core::f32::consts::TAU;
 use core::mem;
 use core::time::Duration;
@@ -45,11 +45,13 @@ const TURNING: f32 = 0.09;
 /// moves them no further, so nothing is flung.
 const LONGEST_STEP_NANOS: u64 = 300_000_000;
 
-/// The disc: the window it follows, the pointer as it last heard it, and how far it has come in moving the stars.
+/// The disc: the window it follows, how it is seen there, the pointer as it last heard it, and how far it has come in
+/// moving the stars.
 #[derive(Bound)]
 #[kind(name = "aether.example.galaxy.disc")]
 pub struct Disc {
-    canvas: Canvas,
+    window: WindowId,
+    camera: Camera,
     pointer: Pointer,
     run: Run,
 }
@@ -77,7 +79,6 @@ pub enum Run {
 #[derive(Plain)]
 #[kind(name = "aether.example.galaxy.seeded")]
 pub struct Seeded {
-    frame: FrameId,
     stars: StorageId,
 }
 
@@ -85,7 +86,6 @@ pub struct Seeded {
 #[derive(Plain)]
 #[kind(name = "aether.example.galaxy.stepped")]
 pub struct Stepped {
-    frame: FrameId,
     stars: StorageId,
     step: UniformsId,
 }
@@ -105,7 +105,7 @@ impl Actor for Disc {
         On<Tick>,
         Event,
         Move,
-        Answer<Stored, FrameId>,
+        Answer<Stored, Nothing>,
         Answer<Uniformed, Seeded>,
         Answer<Computed, Stepped>,
         Answer<Dispatched, Dispatching>,
@@ -117,18 +117,11 @@ impl Actor for Disc {
         turn.to(path::<Window>(canvas.window)).send(&window::Subscribe)?;
         turn.subscribe::<Tick>();
 
-        Ok(Self { canvas, pointer: Pointer::Up, run: Run::Waiting })
+        Ok(Self { window: canvas.window, camera: Camera::UNSIZED, pointer: Pointer::Up, run: Run::Waiting })
     }
 
     fn end(self, _: &mut Ending<'_, Self, Self::EndSends>) -> Result<(), Fault> {
         Ok(())
-    }
-}
-
-impl Disc {
-    /// How the disc is seen on its window's surface as it now is.
-    fn camera(&self) -> Camera {
-        Camera::of(self.canvas.width, self.canvas.height)
     }
 }
 
@@ -137,7 +130,7 @@ impl Handles<Event> for Disc {
 
     fn handle(&mut self, event: Event, _: &mut Turn<'_, Self, ()>) -> Result<(), Fault> {
         if let Event::Resized(surface) = event {
-            self.canvas = Canvas { width: surface.width, height: surface.height, ..self.canvas };
+            self.camera = Camera::of(surface.width, surface.height);
         }
         self.pointer = self.pointer.heard(&event);
 
@@ -146,9 +139,9 @@ impl Handles<Event> for Disc {
 }
 
 impl Handles<Move> for Disc {
-    type Sends = (ToSender<Moving>, Asks<Path<Renderer>, CreateStorage, FrameId>);
+    type Sends = (ToSender<Moving>, Asks<Path<Renderer>, CreateStorage, Nothing>);
 
-    fn handle(&mut self, asked: Move, turn: &mut Turn<'_, Self, Self::Sends>) -> Result<(), Fault> {
+    fn handle(&mut self, _: Move, turn: &mut Turn<'_, Self, Self::Sends>) -> Result<(), Fault> {
         let Run::Waiting = self.run else {
             return Ok(());
         };
@@ -159,33 +152,33 @@ impl Handles<Move> for Disc {
                 return Ok(());
             }
         };
-        turn.to(path::<Renderer>(())).ask(&CreateStorage { bytes }, &asked.frame)?;
+        turn.to(path::<Renderer>(())).ask(&CreateStorage { bytes }, &Nothing)?;
         self.run = Run::Making { asked: turn.hold()? };
 
         Ok(())
     }
 }
 
-impl Handles<Answer<Stored, FrameId>> for Disc {
+impl Handles<Answer<Stored, Nothing>> for Disc {
     type Sends = (Asks<Path<Renderer>, CreateUniforms, Seeded>,);
 
     fn handle(
         &mut self,
-        (answered, frame): (Answered<Stored>, FrameId),
+        (answered, _): (Answered<Stored>, Nothing),
         turn: &mut Turn<'_, Self, Self::Sends>,
     ) -> Result<(), Fault> {
         let Answered::Yes(Stored::Made(stars)) = answered else {
             say(format!("the stars were not stored: {answered:?}"));
             return Ok(());
         };
-        let bytes = match turn.put(Pointer::Up.step(self.camera(), 0.0, 0.0, TURNING)) {
+        let bytes = match turn.put(Pointer::Up.step(self.camera, 0.0, 0.0, TURNING)) {
             Ok(bytes) => bytes,
             Err(why) => {
                 say(format!("no step asked: {why}"));
                 return Ok(());
             }
         };
-        turn.to(path::<Renderer>(())).ask(&CreateUniforms { bytes }, &Seeded { frame, stars })?;
+        turn.to(path::<Renderer>(())).ask(&CreateUniforms { bytes }, &Seeded { stars })?;
 
         Ok(())
     }
@@ -219,7 +212,7 @@ impl Handles<Answer<Uniformed, Seeded>> for Disc {
             }
         };
         let simulate = CreateCompute { wgsl, entry: String::from("simulate"), bindings: simulated() };
-        let stepped = Stepped { frame: seeded.frame, stars: seeded.stars, step };
+        let stepped = Stepped { stars: seeded.stars, step };
         turn.to(path::<Renderer>(())).ask(&simulate, &stepped)?;
 
         Ok(())
@@ -238,22 +231,22 @@ impl Handles<Answer<Computed, Stepped>> for Disc {
             say(format!("the simulation was not made: {answered:?}"));
             return Ok(());
         };
-        let dispatch = dispatched(stepped.frame, simulate, stepped.stars, stepped.step);
+        let dispatch = dispatched(self.window, simulate, stepped.stars, stepped.step);
         turn.to(path::<Renderer>(())).ask(&dispatch, &Dispatching { stars: stepped.stars, step: stepped.step })?;
 
         Ok(())
     }
 }
 
-/// The dispatch of `simulate` in the compute pass of `frame`, moving each of `stars` by the uniforms `step`.
-fn dispatched(frame: FrameId, simulate: ComputeId, stars: StorageId, step: UniformsId) -> CreateDispatch {
+/// The dispatch of `simulate` in the compute pass of `window`'s frame, moving each of `stars` by the uniforms `step`.
+fn dispatched(window: WindowId, simulate: ComputeId, stars: StorageId, step: UniformsId) -> CreateDispatch {
     let bindings = vec![
         Bind { group: 0, binding: 0, to: Resource::Storage(stars) },
         Bind { group: 0, binding: 1, to: Resource::Uniforms(step) },
     ];
 
     CreateDispatch {
-        join: Dispatch::to::<Simulate>(Frame::Texture(frame), simulate, bindings),
+        join: Dispatch::to::<Simulate>(Frame::Main(window), simulate, bindings),
         size: Invocations::PerElement(stars),
     }
 }
@@ -289,7 +282,7 @@ impl Handles<On<Tick>> for Disc {
         };
         let delta = Duration::from_nanos(tick.delta_nanos.min(LONGEST_STEP_NANOS)).as_secs_f32();
         let turned = TURNING.mul_add(delta, turned) % TAU;
-        let Ok(bytes) = turn.put(self.pointer.step(self.camera(), delta, turned, TURNING)) else {
+        let Ok(bytes) = turn.put(self.pointer.step(self.camera, delta, turned, TURNING)) else {
             turn.log(Level::Warn, "the step was not written: its bytes were not put");
             return Ok(());
         };
