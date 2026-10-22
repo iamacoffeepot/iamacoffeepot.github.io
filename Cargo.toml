@@ -10,12 +10,12 @@ publish = false
 
 # The engine, pinned to one aethereal commit. Bumping it is this one rev; see README.md.
 [workspace.dependencies]
-aethereal-actor = { git = "https://github.com/iamacoffeepot/aethereal", rev = "b3f2795a00fabca78f74da5fecc99de00b1e5268" }
-aethereal-chassis-browser = { git = "https://github.com/iamacoffeepot/aethereal", rev = "b3f2795a00fabca78f74da5fecc99de00b1e5268" }
-aethereal-data = { git = "https://github.com/iamacoffeepot/aethereal", rev = "b3f2795a00fabca78f74da5fecc99de00b1e5268" }
-aethereal-render = { git = "https://github.com/iamacoffeepot/aethereal", rev = "b3f2795a00fabca78f74da5fecc99de00b1e5268" }
-aethereal-substrate = { git = "https://github.com/iamacoffeepot/aethereal", rev = "b3f2795a00fabca78f74da5fecc99de00b1e5268" }
-aethereal-window = { git = "https://github.com/iamacoffeepot/aethereal", rev = "b3f2795a00fabca78f74da5fecc99de00b1e5268" }
+aethereal-actor = { git = "https://github.com/iamacoffeepot/aethereal", rev = "613264b890a0c909f36372fefbec195ca97bad0e" }
+aethereal-chassis-browser = { git = "https://github.com/iamacoffeepot/aethereal", rev = "613264b890a0c909f36372fefbec195ca97bad0e" }
+aethereal-data = { git = "https://github.com/iamacoffeepot/aethereal", rev = "613264b890a0c909f36372fefbec195ca97bad0e" }
+aethereal-render = { git = "https://github.com/iamacoffeepot/aethereal", rev = "613264b890a0c909f36372fefbec195ca97bad0e" }
+aethereal-substrate = { git = "https://github.com/iamacoffeepot/aethereal", rev = "613264b890a0c909f36372fefbec195ca97bad0e" }
+aethereal-window = { git = "https://github.com/iamacoffeepot/aethereal", rev = "613264b890a0c909f36372fefbec195ca97bad0e" }
 js-sys = "0.3.106"
 # The bindings' version is the `wasm-bindgen` tool's that writes the page's glue: the workflow installs the same.
 wasm-bindgen = "=0.2.129"

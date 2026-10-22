@@ -95,6 +95,9 @@ impl Handles<Event> for Orbit {
         if let Event::Resized(surface) = event {
             self.canvas = Canvas { width: surface.width, height: surface.height, ..self.canvas };
         }
+        if let Event::Wheel { delta_y, .. } = event {
+            self.view = self.view.zoomed(delta_y);
+        }
         let (pointer, dragged) = self.pointer.heard(&event);
         self.view = self.view.dragged(dragged, pixels(self.canvas.height));
         self.pointer = pointer;

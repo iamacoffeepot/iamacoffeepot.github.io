@@ -6,9 +6,20 @@ use crate::bytes::floats;
 use aethereal_data::Plain;
 use core::f32::consts::{FRAC_PI_2, PI};
 
-/// The camera's distance from the hole, in the hole's masses: about 36 M, far enough to see the disk whole, near enough
-/// for the shadow to fill a good part of the picture.
+/// The camera's distance from the hole as it begins, in the hole's masses: about 36 M, far enough to see the disk
+/// whole, near enough for the shadow to fill a good part of the picture.
 const DISTANCE: f32 = 36.0;
+
+/// The nearest the wheel brings the camera, in the hole's masses: inside the disk's outer edge, well clear of the
+/// photon sphere at 3 M.
+const NEAREST: f32 = 10.0;
+
+/// The farthest the wheel takes the camera, in the hole's masses: short of 120 M, where the trace counts a photon free.
+const FARTHEST: f32 = 90.0;
+
+/// How far a turn of the wheel moves the camera: each pixel of it scales the distance by `e` to this power, so a
+/// notch of about a hundred pixels moves it about a tenth.
+const ZOOM_PER_PIXEL: f32 = 0.001;
 
 /// The tangent of half the vertical field of view, 26 degrees, on a picture at least as wide as it is high; on a
 /// narrower one it is widened so the field across stays the same.
@@ -36,13 +47,14 @@ const EXPOSURE: f32 = 1.0;
 pub struct View {
     yaw: f32,
     pitch: f32,
+    distance: f32,
     time: f32,
 }
 
 impl View {
     /// The view as it begins: just above the disk's plane, at the disk's time zero.
     pub const fn begun() -> Self {
-        Self { yaw: 0.6, pitch: PITCH, time: 0.0 }
+        Self { yaw: 0.6, pitch: PITCH, distance: DISTANCE, time: 0.0 }
     }
 
     /// The view after the pointer was `dragged` over a surface `height` pixels high: a drag the height of the surface
@@ -53,6 +65,14 @@ impl View {
         let pitch = dragged.down.mul_add(turning, self.pitch).clamp(-PITCH_LIMIT, PITCH_LIMIT);
 
         Self { yaw, pitch, ..self }
+    }
+
+    /// The view after the wheel turned `down` pixels: down draws the camera away, up brings it nearer, each pixel by
+    /// the same ratio, held between the nearest and the farthest it goes.
+    pub fn zoomed(self, down: f32) -> Self {
+        let distance = (self.distance * (down * ZOOM_PER_PIXEL).exp()).clamp(NEAREST, FARTHEST);
+
+        Self { distance, ..self }
     }
 
     /// The view `seconds` later: the disk turned on, and the camera drifted round the hole unless `held`.
@@ -72,6 +92,6 @@ impl View {
     pub fn uniforms(self, aspect: f32) -> Vec<u8> {
         let tan_half_fov = TAN_HALF_FOV / aspect.min(1.0);
 
-        floats([self.yaw, self.pitch, DISTANCE, self.time, aspect, tan_half_fov, EXPOSURE, 0.0])
+        floats([self.yaw, self.pitch, self.distance, self.time, aspect, tan_half_fov, EXPOSURE, 0.0])
     }
 }
