@@ -16,7 +16,7 @@ use aethereal_actor::{
     Actor, Answer, Answered, Asks, Beginning, Carries, ChildOf, Ending, Fault, Handles, Held, Level, On, Path, Tells,
     Tick, ToSender, Top, Turn, path,
 };
-use aethereal_data::{Bound, Kind, KindName, Plain};
+use aethereal_data::{Bound, Plain};
 use aethereal_render::Renderer;
 use aethereal_render::compute::{ComputeId, Computed, CreateCompute};
 use aethereal_render::dispatch::{CreateDispatch, Dispatch, Dispatched, Invocations};
@@ -47,14 +47,11 @@ const LONGEST_STEP_NANOS: u64 = 300_000_000;
 
 /// The disc: the window it follows, the pointer as it last heard it, and how far it has come in moving the stars.
 #[derive(Bound)]
+#[kind(name = "aether.example.galaxy.disc")]
 pub struct Disc {
     canvas: Canvas,
     pointer: Pointer,
     run: Run,
-}
-
-impl Kind for Disc {
-    const NAME: KindName = KindName::new("aether.example.galaxy.disc");
 }
 
 impl Carries<Move> for Disc {
@@ -78,36 +75,27 @@ pub enum Run {
 
 /// What was made before the step's uniforms were asked for.
 #[derive(Plain)]
+#[kind(name = "aether.example.galaxy.seeded")]
 pub struct Seeded {
     frame: FrameId,
     stars: StorageId,
 }
 
-impl Kind for Seeded {
-    const NAME: KindName = KindName::new("aether.example.galaxy.seeded");
-}
-
 /// What was made before the compute program was asked for.
 #[derive(Plain)]
+#[kind(name = "aether.example.galaxy.stepped")]
 pub struct Stepped {
     frame: FrameId,
     stars: StorageId,
     step: UniformsId,
 }
 
-impl Kind for Stepped {
-    const NAME: KindName = KindName::new("aether.example.galaxy.stepped");
-}
-
 /// What the dispatch was asked for with.
 #[derive(Plain)]
+#[kind(name = "aether.example.galaxy.dispatching")]
 pub struct Dispatching {
     stars: StorageId,
     step: UniformsId,
-}
-
-impl Kind for Dispatching {
-    const NAME: KindName = KindName::new("aether.example.galaxy.dispatching");
 }
 
 impl Actor for Disc {

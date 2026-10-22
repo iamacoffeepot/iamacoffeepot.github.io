@@ -5,7 +5,7 @@ version = 4
 [[package]]
 name = "aethereal-actor"
 version = "0.1.0"
-source = "git+https://github.com/iamacoffeepot/aethereal?rev=613264b890a0c909f36372fefbec195ca97bad0e#613264b890a0c909f36372fefbec195ca97bad0e"
+source = "git+https://github.com/iamacoffeepot/aethereal?rev=7fc1d34ea1bdc0c32877431a785479137af9d8c3#7fc1d34ea1bdc0c32877431a785479137af9d8c3"
 dependencies = [
  "aethereal-data",
  "blake3",
@@ -15,7 +15,7 @@ dependencies = [
 [[package]]
 name = "aethereal-chassis-browser"
 version = "0.1.0"
-source = "git+https://github.com/iamacoffeepot/aethereal?rev=613264b890a0c909f36372fefbec195ca97bad0e#613264b890a0c909f36372fefbec195ca97bad0e"
+source = "git+https://github.com/iamacoffeepot/aethereal?rev=7fc1d34ea1bdc0c32877431a785479137af9d8c3#7fc1d34ea1bdc0c32877431a785479137af9d8c3"
 dependencies = [
  "aethereal-actor",
  "aethereal-data",
@@ -32,7 +32,7 @@ dependencies = [
 [[package]]
 name = "aethereal-data"
 version = "0.1.0"
-source = "git+https://github.com/iamacoffeepot/aethereal?rev=613264b890a0c909f36372fefbec195ca97bad0e#613264b890a0c909f36372fefbec195ca97bad0e"
+source = "git+https://github.com/iamacoffeepot/aethereal?rev=7fc1d34ea1bdc0c32877431a785479137af9d8c3#7fc1d34ea1bdc0c32877431a785479137af9d8c3"
 dependencies = [
  "aethereal-data-derive",
 ]
@@ -40,7 +40,7 @@ dependencies = [
 [[package]]
 name = "aethereal-data-derive"
 version = "0.1.0"
-source = "git+https://github.com/iamacoffeepot/aethereal?rev=613264b890a0c909f36372fefbec195ca97bad0e#613264b890a0c909f36372fefbec195ca97bad0e"
+source = "git+https://github.com/iamacoffeepot/aethereal?rev=7fc1d34ea1bdc0c32877431a785479137af9d8c3#7fc1d34ea1bdc0c32877431a785479137af9d8c3"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -50,7 +50,7 @@ dependencies = [
 [[package]]
 name = "aethereal-render"
 version = "0.1.0"
-source = "git+https://github.com/iamacoffeepot/aethereal?rev=613264b890a0c909f36372fefbec195ca97bad0e#613264b890a0c909f36372fefbec195ca97bad0e"
+source = "git+https://github.com/iamacoffeepot/aethereal?rev=7fc1d34ea1bdc0c32877431a785479137af9d8c3#7fc1d34ea1bdc0c32877431a785479137af9d8c3"
 dependencies = [
  "aethereal-actor",
  "aethereal-data",
@@ -62,7 +62,7 @@ dependencies = [
 [[package]]
 name = "aethereal-substrate"
 version = "0.1.0"
-source = "git+https://github.com/iamacoffeepot/aethereal?rev=613264b890a0c909f36372fefbec195ca97bad0e#613264b890a0c909f36372fefbec195ca97bad0e"
+source = "git+https://github.com/iamacoffeepot/aethereal?rev=7fc1d34ea1bdc0c32877431a785479137af9d8c3#7fc1d34ea1bdc0c32877431a785479137af9d8c3"
 dependencies = [
  "aethereal-actor",
  "aethereal-data",
@@ -72,7 +72,7 @@ dependencies = [
 [[package]]
 name = "aethereal-window"
 version = "0.1.0"
-source = "git+https://github.com/iamacoffeepot/aethereal?rev=613264b890a0c909f36372fefbec195ca97bad0e#613264b890a0c909f36372fefbec195ca97bad0e"
+source = "git+https://github.com/iamacoffeepot/aethereal?rev=7fc1d34ea1bdc0c32877431a785479137af9d8c3#7fc1d34ea1bdc0c32877431a785479137af9d8c3"
 dependencies = [
  "aethereal-actor",
  "aethereal-data",

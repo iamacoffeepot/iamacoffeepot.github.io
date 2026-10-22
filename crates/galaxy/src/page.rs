@@ -5,7 +5,8 @@ use crate::disc::{Disc, STARS};
 use crate::lens::Lens;
 use crate::mail::Canvas;
 use aethereal_actor::{Render, Tick};
-use aethereal_chassis_browser::{Browser, Listening, Performance, canvas, open, renderer};
+use aethereal_chassis_browser::canvas::{self, Density};
+use aethereal_chassis_browser::{Browser, Listening, Performance, open, renderer};
 use aethereal_render::Renderer;
 use aethereal_substrate::Engine;
 use aethereal_window::{Heard, Opening, Windows};
@@ -61,8 +62,9 @@ pub async fn start(canvas: HtmlCanvasElement) -> Result<Program, JsError> {
         .add_root::<Lens>(&(), sized)
         .map_err(|refused| JsError::new(&format!("the lens did not begin: {refused:?}")))?
         .ready();
-    let program =
-        Program { browser: Browser::new(engine, Performance, mappings), _canvas: canvas::listen(&canvas, &shown)? };
+    // Past two device pixels to each CSS pixel the stars are no sharper, only slower.
+    let listening = canvas::listen(&canvas, &shown, Density::at_most(2.0))?;
+    let program = Program { browser: Browser::new(engine, Performance, mappings), _canvas: listening };
 
     Ok(program)
 }

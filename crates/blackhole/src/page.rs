@@ -5,7 +5,8 @@ use crate::lens::Lens;
 use crate::mail::Canvas;
 use crate::orbit::Orbit;
 use aethereal_actor::{Render, Tick};
-use aethereal_chassis_browser::{Browser, Listening, Performance, canvas, open, renderer};
+use aethereal_chassis_browser::canvas::{self, Density};
+use aethereal_chassis_browser::{Browser, Listening, Performance, open, renderer};
 use aethereal_render::Renderer;
 use aethereal_substrate::Engine;
 use aethereal_window::{Heard, Opening, Windows};
@@ -35,13 +36,14 @@ pub struct Program {
 
 /// Opens `canvas` as the one window and WebGPU on it, then makes the engine with the window root, the renderer, handed
 /// the GPU, the orbit, and the lens as its roots, each told the canvas's size, and listens to the page for the pointer
-/// over the canvas.
+/// over the canvas, drawn at the canvas's device pixels to each CSS pixel, but at most `density`: the page's
+/// `min(devicePixelRatio, 2)` times the quality it was asked for, so a lower quality traces fewer photons.
 ///
 /// # Errors
 ///
 /// When WebGPU will not open on the canvas, a root does not begin, or the page will not be listened to.
 #[wasm_bindgen]
-pub async fn start(canvas: HtmlCanvasElement) -> Result<Program, JsError> {
+pub async fn start(canvas: HtmlCanvasElement, density: f64) -> Result<Program, JsError> {
     let mut setup = Engine::new(NonZeroUsize::MIN, 1024, 1 << 20, 1 << 24, 0)
         .with_cycle::<(Tick, Render)>()
         .map_err(|unordered| JsError::new(&format!("the cycle is out of order: {unordered:?}")))?;
@@ -61,8 +63,8 @@ pub async fn start(canvas: HtmlCanvasElement) -> Result<Program, JsError> {
         .add_root::<Lens>(&(), sized)
         .map_err(|refused| JsError::new(&format!("the lens did not begin: {refused:?}")))?
         .ready();
-    let program =
-        Program { browser: Browser::new(engine, Performance, mappings), _canvas: canvas::listen(&canvas, &shown)? };
+    let listening = canvas::listen(&canvas, &shown, Density::at_most(density))?;
+    let program = Program { browser: Browser::new(engine, Performance, mappings), _canvas: listening };
 
     Ok(program)
 }

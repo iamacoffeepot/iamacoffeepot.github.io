@@ -3,7 +3,8 @@
 
 use crate::game::{Match, Pong};
 use aethereal_actor::{Render, Tick};
-use aethereal_chassis_browser::{Browser, Listening, Performance, canvas, open, renderer};
+use aethereal_chassis_browser::canvas::{self, Density};
+use aethereal_chassis_browser::{Browser, Listening, Performance, open, renderer};
 use aethereal_render::Renderer;
 use aethereal_substrate::Engine;
 use aethereal_window::{Heard, Opening, Windows};
@@ -45,8 +46,9 @@ pub async fn start(canvas: HtmlCanvasElement) -> Result<Program, JsError> {
         .add_root::<Pong>(&(), game)
         .map_err(|refused| JsError::new(&format!("the game did not begin: {refused:?}")))?
         .ready();
-    let program =
-        Program { browser: Browser::new(engine, Performance, mappings), _canvas: canvas::listen(&canvas, &shown)? };
+    // Every device pixel, as the page sized the canvas before it opened the GPU.
+    let listening = canvas::listen(&canvas, &shown, Density::SCREEN)?;
+    let program = Program { browser: Browser::new(engine, Performance, mappings), _canvas: listening };
 
     Ok(program)
 }

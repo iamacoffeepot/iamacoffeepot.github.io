@@ -13,7 +13,7 @@ use aethereal_actor::{
     Actor, Allows, Answer, Answered, Asks, Beginning, BlobRef, ChildOf, Ending, Fault, Handles, On, Path, Start, Top,
     Turn, path,
 };
-use aethereal_data::{Bound, Kind, KindName, Plain};
+use aethereal_data::{Bound, Plain};
 use aethereal_render::Renderer;
 use aethereal_render::effect::{CreateEffect, EffectId, Effected};
 use aethereal_render::frame::builder::Float;
@@ -28,15 +28,12 @@ use trace::Tracing;
 
 /// The lens: how far it has come in showing the hole on the canvas.
 #[derive(Bound)]
+#[kind(name = "aether.example.blackhole.lens")]
 pub enum Lens {
     /// Its asks are under way.
     Making { canvas: Canvas },
     /// The quad is placed in both frames.
     Showing,
-}
-
-impl Kind for Lens {
-    const NAME: KindName = KindName::new("aether.example.blackhole.lens");
 }
 
 impl ChildOf for Lens {
@@ -45,23 +42,17 @@ impl ChildOf for Lens {
 
 /// What was learned before the quad was asked for: the window's colour, which the composite draws into.
 #[derive(Plain)]
+#[kind(name = "aether.example.blackhole.learned")]
 pub struct Learned {
     window: ColourFormat,
 }
 
-impl Kind for Learned {
-    const NAME: KindName = KindName::new("aether.example.blackhole.learned");
-}
-
 /// What was made before the tracing program was asked for.
 #[derive(Plain)]
+#[kind(name = "aether.example.blackhole.made_mesh")]
 pub struct MadeMesh {
     window: ColourFormat,
     mesh: MeshId,
-}
-
-impl Kind for MadeMesh {
-    const NAME: KindName = KindName::new("aether.example.blackhole.made_mesh");
 }
 
 /// What was made before the bloom's effects were asked for.
@@ -74,6 +65,7 @@ pub struct Drawn {
 
 /// Which of the bloom's effects was asked for, with those made before it.
 #[derive(Debug, Clone, Copy, Plain)]
+#[kind(name = "aether.example.blackhole.effecting")]
 pub enum Effecting {
     Bright(Drawn),
     Across(Drawn, EffectId<(Float,)>),
@@ -81,30 +73,20 @@ pub enum Effecting {
     Composite(Drawn, EffectId<(Float,)>, EffectId<(Float,)>, EffectId<(Float,)>),
 }
 
-impl Kind for Effecting {
-    const NAME: KindName = KindName::new("aether.example.blackhole.effecting");
-}
-
 /// What was made before the view was asked for.
 #[derive(Debug, Clone, Copy, Plain)]
+#[kind(name = "aether.example.blackhole.made")]
 pub struct Made {
     drawn: Drawn,
     effects: Effects,
 }
 
-impl Kind for Made {
-    const NAME: KindName = KindName::new("aether.example.blackhole.made");
-}
-
 /// Which frame was asked for: the glow's, with all that traces the photons, then the window's, with the glow's.
 #[derive(Plain)]
+#[kind(name = "aether.example.blackhole.framing")]
 pub enum Framing {
     Glow(Effects, Tracing),
     Shown(Tracing, FrameId),
-}
-
-impl Kind for Framing {
-    const NAME: KindName = KindName::new("aether.example.blackhole.framing");
 }
 
 impl Actor for Lens {

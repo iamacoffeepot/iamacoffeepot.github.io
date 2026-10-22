@@ -54,7 +54,7 @@
 
     try {
       await init();
-      const program = await start(canvas);
+      const program = await start(canvas, scale);
       // Every few seconds the console says how long a frame took, on average, between the page's animation frames
       // and inside the engine's.
       let frames = 0, inside = 0, since = performance.now();

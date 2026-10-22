@@ -11,7 +11,7 @@ use aethereal_actor::{
     Actor, Answer, Answered, Asks, Beginning, Carries, ChildOf, Ending, Fault, Handles, Held, Level, On, Path, Tells,
     Tick, ToSender, Top, Turn, path,
 };
-use aethereal_data::{Bound, Kind, KindName};
+use aethereal_data::Bound;
 use aethereal_render::Renderer;
 use aethereal_render::uniforms::{CreateUniforms, Uniformed, UniformsId, WriteUniforms};
 use aethereal_window::{self as window, Event, Window};
@@ -27,15 +27,12 @@ const LONGEST_STEP_NANOS: u64 = 250_000_000;
 /// The orbit: the window it follows, the pointer as it last heard it, the camera's view, and how far it has come in
 /// handing the view to the GPU.
 #[derive(Bound)]
+#[kind(name = "aether.example.blackhole.orbit")]
 pub struct Orbit {
     canvas: Canvas,
     pointer: Pointer,
     view: View,
     run: Run,
-}
-
-impl Kind for Orbit {
-    const NAME: KindName = KindName::new("aether.example.blackhole.orbit");
 }
 
 impl Carries<Look> for Orbit {
